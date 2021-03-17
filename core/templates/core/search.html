@@ -58,6 +58,11 @@ form.example::after {
 </form>
 
 {{ error }}
+<p>
+    Total records: {{ total_hits }}
+    <br>
+    Some sample data
+</p>
 {% for hit in hits %}
     <li>
         {{ hit | get_source }}

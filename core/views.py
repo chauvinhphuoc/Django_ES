@@ -1,13 +1,11 @@
 from django.shortcuts import render
-from elasticsearch import Elasticsearch, ElasticsearchException
+from elasticsearch import Elasticsearch
 
-import psycopg2
-from psycopg2.extras import DictCursor
-import os
+
+es = Elasticsearch()
 
 
 def search_es(search_string):
-    es = Elasticsearch()
     query = {
         "query": {
             "multi_match": {
@@ -21,24 +19,22 @@ def search_es(search_string):
             }
         }
     }
-    res = es.search(index="news_headlines", body=query)
-    hits = res['hits']['hits']
-    context = {"hits": hits}
+    res = es.search(index="news_headlines", body=query, track_total_hits=True)
 
-    return context
+    return res
 
 
-def search_db(search_string):
-    try:
-        conn = psycopg2.connect(f'dbname={os.getenv("dbname")} user={os.getenv("user")} password={os.getenv("password")}')
-        cur = conn.cursor(cursor_factory=DictCursor)
-        cur.execute(f'SELECT * FROM mytable WHERE headline IN {[search_string]}')
-        hits = cur.fetchone()
-        print(hits)
-        context = {"hits": hits}
-        return context
-    except Exception as e:
-        print(e)
+# def search_db(search_string):
+#     try:
+#         conn = psycopg2.connect(f'dbname={os.getenv("dbname")} user={os.getenv("user")} password={os.getenv("password")}')
+#         cur = conn.cursor(cursor_factory=DictCursor)
+#         cur.execute(f'SELECT * FROM mytable WHERE headline IN {[search_string]}')
+#         hits = cur.fetchone()
+#         print(hits)
+#         context = {"hits": hits}
+#         return context
+#     except Exception as e:
+#         print(e)
 
 
 def home(request):
@@ -47,11 +43,11 @@ def home(request):
         context = {}
     else:
         try:
-            context = search_es(search_string)
-        except Exception:
-            try:
-                context = search_db(search_string)
-            except Exception:
-                context = {'error': "Server Error"}
+            res = search_es(search_string)
+            hits = res['hits']['hits']
+            total_hits = res['hits']['total']['value']
+            context = {"hits": hits, 'total_hits': total_hits}
+        except Exception as e:
+            context = {'error': e}
 
     return render(request, 'core/search.html', context)
